@@ -1,0 +1,21 @@
+name: ci-node
+# Reusable TS/Next CI: lint + format-check (Biome) + type-check (tsc) + tests (vitest).
+# NOTE: third-party actions are on version tags; pin to full commit SHAs before production
+# (supply-chain / F20). Renovate can do this automatically.
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4          # TODO: pin to SHA
+      - uses: pnpm/action-setup@v4         # TODO: pin to SHA
+        with: { version: 9 }
+      - uses: actions/setup-node@v4        # TODO: pin to SHA
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec biome ci .
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm test

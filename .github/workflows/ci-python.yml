@@ -1,0 +1,19 @@
+name: ci-python
+# Reusable Python CI: lint + format-check + type-check + tests. Hard-fails on any.
+# NOTE: third-party actions are on version tags below; pin them to full commit SHAs
+# before this guards anything real (supply-chain / F20). Renovate can do this automatically.
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4          # TODO: pin to SHA
+      - uses: astral-sh/setup-uv@v5        # TODO: pin to SHA
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy .
+      - run: uv run pytest
