@@ -1,0 +1,47 @@
+name: ci
+# Self-CI for the machinery repo. The reusable workflows here are
+# workflow_call-only, so without this file the repo that defines every other
+# repo's gates had no checks on its own PRs. Same pinned-binary + checksum
+# pattern as the reusable workflows (see ci-python.yml for the rationale).
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - name: actionlint (workflow syntax + expression checks)
+        run: |
+          curl -sSL -o actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - name: gitleaks scan (working tree)
+        run: |
+          curl -sSL -o gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
+          echo "5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks dir . --no-banner --redact
+  # Terminal aggregator, same contract as repo-template: one stable
+  # required-check name for the ruleset.
+  all-checks-passed:
+    needs: [actionlint, gitleaks]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: verify no needed job failed or was cancelled
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "A required job failed or was cancelled:"
+            echo '${{ toJSON(needs.*.result) }}'
+            exit 1
+          fi
+          echo "all checks passed"
