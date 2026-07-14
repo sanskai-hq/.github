@@ -1,5 +1,5 @@
 name: ci-python
-# Reusable Python CI: lint + format-check + type-check + tests. Hard-fails on any.
+# Reusable Python CI: lint + format-check + type-check + tests + secret-scan. Hard-fails on any.
 on:
   workflow_call:
 permissions:
@@ -15,3 +15,19 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy .
       - run: uv run pytest
+  # Merge-blocking secret scan (benchmark F-2). Pre-commit gitleaks is bypassable
+  # (direct push, machine without hooks); this server-side gate is not.
+  # Pinned binary + checksum instead of gitleaks-action: the action requires a
+  # GITLEAKS_LICENSE for org repos. Scans the working tree (current files), not
+  # history — history scanning is trufflehog's job (see dev-ops next-tasks W0-2),
+  # and a historical, since-rotated leak must not permanently redline CI.
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - name: gitleaks scan (working tree)
+        run: |
+          curl -sSL -o gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
+          echo "5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks dir . --no-banner --redact

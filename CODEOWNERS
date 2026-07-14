@@ -1,0 +1,5 @@
+# This repo is a single point of compromise for every client deploy (its own
+# README says so). Every change requires founder review — either founder can
+# approve, and GitHub excludes the PR author, so a second person always looks.
+# Enforced by the repo ruleset (dev-ops/scripts/apply-rulesets.sh).
+* @usc-tk @dsbatra
